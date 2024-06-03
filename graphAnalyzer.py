@@ -66,6 +66,9 @@ class GraphAnalyzer:
 
             self.data_window.add_data(otherX, otherY)
 
+            # Сохраняем координаты точек для последующего использования
+            self.points.append((x, y))
+
             font = cv.FONT_HERSHEY_SIMPLEX
             fontScale = 1
             color = (0, 0, 0)
@@ -73,17 +76,12 @@ class GraphAnalyzer:
             cv.putText(self.image, ".", (x, y), font, fontScale, color, thickness)
             cv.imshow('Graph', self.image)
 
-        if event == cv.EVENT_RBUTTONDOWN:
-            print((x / self.x_step), ' ', y / self.y_step)
-            font = cv.FONT_HERSHEY_SIMPLEX
-            fontScale = 0.4
-            color = (0, 0, 0)
-            thickness = 1
-            b = self.image[y, x, 0]
-            g = self.image[y, x, 1]
-            r = self.image[y, x, 2]
-            cv.putText(self.image, str(b) + ', ' + str(g) + ',' + str(r), (x, y), font, fontScale, color, thickness)
-            cv.imshow('image', self.image)
+    def save_image_with_points(self, save_path):
+        image_with_points = self.image.copy()
+        for point in self.points:
+            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)  # Рисуем круг вокруг каждой точки
+        cv.imwrite(save_path, image_with_points)
+        print("Изображение успешно сохранено с добавленными точками:", save_path)
 
     def analyze(self):
         self.image = cv.imread(self.filename, 1)

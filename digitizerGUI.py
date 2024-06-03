@@ -122,6 +122,8 @@ class ErrorDialog(QDialog):
 class DataTableWindow(QDialog):
     def __init__(self, x_axis_name, y_axis_name):
         super().__init__()
+        self.final_image = None
+
         self.setWindowTitle("Ваши данные:")
         self.setGeometry(400, 300, 400, 300)
         self.x_axis_name = x_axis_name
@@ -130,22 +132,22 @@ class DataTableWindow(QDialog):
         self.table_widget.setColumnCount(2)
         self.table_widget.setHorizontalHeaderLabels([self.x_axis_name, self.y_axis_name])
 
+        self.save_image_button = QPushButton("Сохранить изображение как")
         self.import_label = QLabel("Экспортировать:")
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
 
+        self.save_image_button.clicked.connect(self.save_image)
         self.export_xlsx_button.clicked.connect(self.export_to_xlsx)
         self.export_csv_button.clicked.connect(self.export_to_csv)
 
         layout = QVBoxLayout()
         layout.addWidget(self.table_widget)
+        layout.addWidget(self.save_image_button)
         layout.addWidget(self.import_label)
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
         self.setLayout(layout)
-
-    # остальные методы остаются без изменений
-
 
     def add_data(self, x, y):
         row_position = self.table_widget.rowCount()
@@ -182,6 +184,10 @@ class DataTableWindow(QDialog):
                             row_data.append(item.text())
                     writer.writerow(row_data)
 
+    def save_image(self):
+        save_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "Images (*.png *.jpg)")
+        if save_path:
+            self.graph_analyzer.save_image_with_points(save_path)
 
 class DigitizerGUI(QMainWindow):
     def __init__(self):
