@@ -5,10 +5,11 @@ from PIL import Image
 import dumpNumbers
 
 class GraphAnalyzer:
-    def __init__(self, filename, x_step, y_step):
+    def __init__(self, filename, x_step, y_step, data_window):
         self.filename = filename
         self.x_step = x_step
         self.y_step = y_step
+        self.data_window = data_window
         self.trashedWhiteLeft = 0
         self.trashedWhiteBottom = 0
         self.height, self.width = self.image_size()[:2]
@@ -29,7 +30,7 @@ class GraphAnalyzer:
         cv.cvtColor(graph, cv.COLOR_BGR2RGB)
 
         (h, w) = graph.shape[:2]
-        (cX, cY) = (w//2, h//2)
+        (cX, cY) = (w // 2, h // 2)
 
         y, x = 0, 0
         newHeight, newWidth = cY, cX
@@ -63,6 +64,9 @@ class GraphAnalyzer:
             self.writer.writerow(data)
             print(otherX, ' ', otherY)
 
+            # Добавление данных в таблицу в интерфейсе
+            self.data_window.add_data(otherX, otherY)
+
             font = cv.FONT_HERSHEY_SIMPLEX
             fontScale = 1
             color = (0, 0, 0)
@@ -92,4 +96,3 @@ class GraphAnalyzer:
         cv.destroyAllWindows()
         print("\nДанные сохранены в \"GraphData.csv\"!")
         self.fileCsv.close()
-

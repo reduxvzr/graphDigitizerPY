@@ -1,11 +1,14 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QFileDialog, QPushButton, QLabel, QWidget,
+    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem
+)
 from PyQt6 import QtWidgets, QtCore
 import sys
 import pyautogui
 import numpy as np
 import cv2 as cv
 import pyscreenshot as ImageGrab
-import os 
+import os
 import shutil
 
 DURATION_INT = 10
@@ -99,6 +102,26 @@ class ErrorDialog(QDialog):
         layout.addWidget(self.error_label)
         layout.addWidget(self.ok_button)
         self.setLayout(layout)
+
+class DataTableWindow(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Ваши данные:")
+        self.setGeometry(400, 300, 400, 300)
+
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(2)
+        self.table_widget.setHorizontalHeaderLabels(["X", "Y"])
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.table_widget)
+        self.setLayout(layout)
+
+    def add_data(self, x, y):
+        row_position = self.table_widget.rowCount()
+        self.table_widget.insertRow(row_position)
+        self.table_widget.setItem(row_position, 0, QTableWidgetItem(str(x)))
+        self.table_widget.setItem(row_position, 1, QTableWidgetItem(str(y)))
 
 class DigitizerGUI(QMainWindow):
     def __init__(self):
@@ -222,25 +245,16 @@ class DigitizerGUI(QMainWindow):
         options = QFileDialog.Option.ReadOnly
         file_path, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "All Files (*);;Text Files (*.txt)", options=options)
         if file_path:
-            file_name = os.path.basename(file_path)
-            self.main_text.setText(f"Выбран файл: {file_name}")
-            destination = os.path.join(os.path.dirname(os.path.realpath(__file__)), file_name)
-            shutil.copyfile(file_path, destination)
-            self.filename = destination
+            filename = os.path.basename(file_path)
+            screenshot_path = os.path.join(os.getcwd(), filename)
+            shutil.copy(file_path, screenshot_path)
+            self.filename = filename
             self.choice = True
-        self.show_buttons()
-
-    def closeEvent(self, event):
-        if hasattr(self, 'filename') and self.filename:
-            file_path = self.filename
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        event.accept()
+            self.show_buttons()
 
     def view_screenshot(self):
-        self.filename = "screenshot.png"
-        img = cv.imread(self.filename)
-        cv.imshow("Screenshot", img)
+        image = cv.imread(self.filename)
+        cv.imshow("Скриншот", image)
         cv.waitKey(0)
         cv.destroyAllWindows()
 
@@ -254,8 +268,11 @@ class DigitizerGUI(QMainWindow):
                 screenshot_path = self.filename
 
                 if os.path.exists(screenshot_path):
+                    self.data_window = DataTableWindow()
+                    self.data_window.show()
+
                     from graphAnalyzer import GraphAnalyzer
-                    analyzer = GraphAnalyzer(screenshot_path, xGraph, yGraph)
+                    analyzer = GraphAnalyzer(screenshot_path, xGraph, yGraph, self.data_window)
                     analyzer.analyze()
                 else:
                     error_dialog = ErrorDialog(self)
@@ -268,11 +285,8 @@ class DigitizerGUI(QMainWindow):
         else:
             print("Анализ графика отменен.")
 
-def application():
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = DigitizerGUI()
     window.show()
     sys.exit(app.exec())
-
-if __name__ == "__main__":
-    application()
