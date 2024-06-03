@@ -9,9 +9,7 @@ import numpy as np
 import cv2 as cv
 import pyscreenshot as ImageGrab
 import os
-import shutil
 import csv
-import openpyxl
 from openpyxl import Workbook
 
 
@@ -63,7 +61,9 @@ class InputDialog(QDialog):
         self.setWindowTitle("Ввод данных для анализа")
 
         self.info_label = QLabel("Напишите значения графика", self)
-        self.info_label.setStyleSheet("font: 12pt Helvetica")
+        self.info2_label =  QLabel("ПКМ для точек", self)
+        self.info3_label =  QLabel("ЛКМ для текста", self)
+        self.info_label.setStyleSheet("font: 14pt Helvetica")
         self.info_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         self.x_label = QLabel("X:")
@@ -92,6 +92,8 @@ class InputDialog(QDialog):
         layout.addWidget(self.x_axis_input)
         layout.addWidget(self.y_axis_label)
         layout.addWidget(self.y_axis_input)
+        layout.addWidget(self.info2_label)
+        layout.addWidget(self.info3_label)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
 
@@ -118,16 +120,17 @@ class ErrorDialog(QDialog):
         self.setLayout(layout)
 
 class DataTableWindow(QDialog):
-    def __init__(self):
+    def __init__(self, x_axis_name, y_axis_name):
         super().__init__()
         self.setWindowTitle("Ваши данные:")
         self.setGeometry(400, 300, 400, 300)
-
+        self.x_axis_name = x_axis_name
+        self.y_axis_name = y_axis_name
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(2)
-        self.table_widget.setHorizontalHeaderLabels(["X", "Y"])
+        self.table_widget.setHorizontalHeaderLabels([self.x_axis_name, self.y_axis_name])
 
-        self.import_label = QLabel("Импортировать:")
+        self.import_label = QLabel("Экспортировать:")
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
 
@@ -135,11 +138,14 @@ class DataTableWindow(QDialog):
         self.export_csv_button.clicked.connect(self.export_to_csv)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.import_label)
         layout.addWidget(self.table_widget)
+        layout.addWidget(self.import_label)
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
         self.setLayout(layout)
+
+    # остальные методы остаются без изменений
+
 
     def add_data(self, x, y):
         row_position = self.table_widget.rowCount()
@@ -152,11 +158,14 @@ class DataTableWindow(QDialog):
         if file_path:
             workbook = Workbook()
             worksheet = workbook.active
+            worksheet.append([self.x_axis_name, self.y_axis_name])  # записываем имена столбцов
             for row in range(self.table_widget.rowCount()):
+                row_data = []
                 for col in range(self.table_widget.columnCount()):
                     item = self.table_widget.item(row, col)
                     if item is not None:
-                        worksheet.cell(row=row + 1, column=col + 1, value=str(item.text()))
+                        row_data.append(item.text())
+                worksheet.append(row_data)
             workbook.save(file_path)
 
     def export_to_csv(self):
@@ -164,6 +173,7 @@ class DataTableWindow(QDialog):
         if file_path:
             with open(file_path, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
+                writer.writerow([self.x_axis_name, self.y_axis_name])  # записываем имена столбцов
                 for row in range(self.table_widget.rowCount()):
                     row_data = []
                     for col in range(self.table_widget.columnCount()):
@@ -310,7 +320,7 @@ class DigitizerGUI(QMainWindow):
                 try:
                     x_step = float(x_step)
                     y_step = float(y_step)
-                    self.data_window = DataTableWindow()
+                    self.data_window = DataTableWindow(x_axis_name, y_axis_name)
                     self.graph_analyzer = GraphAnalyzer(self.filename, x_step, y_step, self.data_window, x_axis_name, y_axis_name)
                     self.graph_analyzer.analyze()
                     self.data_window.exec()
@@ -360,8 +370,6 @@ class GraphAnalyzer:
                     self.trashedWhiteLeft = j
                     break
 
-        croppedRightBottom = graph[cY:h, 0:cX]
-
         counter = 0
         for i in range(newHeight, 0, -1):
             for j in range(newHeight, 0, -1):
@@ -391,16 +399,22 @@ class GraphAnalyzer:
             cv.imshow('Graph', self.image)
 
         if event == cv.EVENT_RBUTTONDOWN:
-            print((x / self.x_step), ' ', y / self.y_step)
-            font = cv.FONT_HERSHEY_SIMPLEX
-            fontScale = 0.4
-            color = (0, 0, 0)
-            thickness = 1
-            b = self.image[y, x, 0]
-            g = self.image[y, x, 1]
-            r = self.image[y, x, 2]
-            cv.putText(self.image, str(b) + ', ' + str(g) + ',' + str(r), (x, y), font, fontScale, color, thickness)
-            cv.imshow('image', self.image)
+            if event == cv.EVENT_RBUTTONDOWN:
+                otherX = round(x / self.x_step, 2)
+                otherY = round((self.height - y) / self.y_step, 2)
+                data = otherX, otherY
+                self.writer.writerow(data)
+                print(otherX, ' ', otherY)
+
+                self.data_window.add_data(otherX, otherY)
+
+                font = cv.FONT_HERSHEY_SIMPLEX
+                fontScale = 0.5  # Уменьшаем размер текста
+                color = (0, 165, 255)  # оранжевый цвет
+                thickness = 2
+                cv.putText(self.image, f"({otherX}, {otherY})", (x, y), font, fontScale, color, thickness)
+                cv.circle(self.image, (x, y), 3, color, -1)  # Рисуем черную точку вместо текста
+                cv.imshow('Graph', self.image)
 
     def analyze(self):
         self.image = cv.imread(self.filename, 1)
@@ -411,7 +425,7 @@ class GraphAnalyzer:
         cv.setMouseCallback("Graph", self.click_event)
         cv.waitKey(0)
         cv.destroyAllWindows()
-        print("\nДанные сохранены в \"GraphData.csv\"!")
+        print("\nДанные сохранены!")
         self.fileCsv.close()
 
 if __name__ == '__main__':

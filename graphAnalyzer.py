@@ -93,5 +93,4 @@ class GraphAnalyzer:
         cv.setMouseCallback("Graph", self.click_event)
         cv.waitKey(0)
         cv.destroyAllWindows()
-        print("\nДанные сохранены в \"GraphData.csv\"!")
         self.fileCsv.close()
