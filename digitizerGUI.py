@@ -11,6 +11,9 @@ import pyscreenshot as ImageGrab
 import os
 import shutil
 import csv
+import openpyxl
+from openpyxl import Workbook
+
 
 DURATION_INT = 10
 
@@ -124,8 +127,18 @@ class DataTableWindow(QDialog):
         self.table_widget.setColumnCount(2)
         self.table_widget.setHorizontalHeaderLabels(["X", "Y"])
 
+        self.import_label = QLabel("Импортировать:")
+        self.export_xlsx_button = QPushButton("Как xlsx")
+        self.export_csv_button = QPushButton("Как csv")
+
+        self.export_xlsx_button.clicked.connect(self.export_to_xlsx)
+        self.export_csv_button.clicked.connect(self.export_to_csv)
+
         layout = QVBoxLayout()
+        layout.addWidget(self.import_label)
         layout.addWidget(self.table_widget)
+        layout.addWidget(self.export_xlsx_button)
+        layout.addWidget(self.export_csv_button)
         self.setLayout(layout)
 
     def add_data(self, x, y):
@@ -133,6 +146,32 @@ class DataTableWindow(QDialog):
         self.table_widget.insertRow(row_position)
         self.table_widget.setItem(row_position, 0, QTableWidgetItem(str(x)))
         self.table_widget.setItem(row_position, 1, QTableWidgetItem(str(y)))
+
+    def export_to_xlsx(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить как xlsx", "", "Excel Files (*.xlsx)")
+        if file_path:
+            workbook = Workbook()
+            worksheet = workbook.active
+            for row in range(self.table_widget.rowCount()):
+                for col in range(self.table_widget.columnCount()):
+                    item = self.table_widget.item(row, col)
+                    if item is not None:
+                        worksheet.cell(row=row + 1, column=col + 1, value=str(item.text()))
+            workbook.save(file_path)
+
+    def export_to_csv(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить как csv", "", "CSV Files (*.csv)")
+        if file_path:
+            with open(file_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                for row in range(self.table_widget.rowCount()):
+                    row_data = []
+                    for col in range(self.table_widget.columnCount()):
+                        item = self.table_widget.item(row, col)
+                        if item is not None:
+                            row_data.append(item.text())
+                    writer.writerow(row_data)
+
 
 class DigitizerGUI(QMainWindow):
     def __init__(self):
@@ -297,8 +336,11 @@ class GraphAnalyzer:
 
     def image_size(self):
         image = cv.imread(self.filename)
-        height, width, channels = image.shape
-        return height, width, channels
+        if image is not None:
+            height, width, channels = image.shape
+            return height, width, channels
+        else:
+            return 0, 0, 0
 
     def find_first_black_pixel(self):
         graph = cv.imread(self.filename)
