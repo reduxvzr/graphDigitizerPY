@@ -6,5 +6,5 @@ other_file_filename = digitizer_instance.filename
 
 def xAndyValues():
     dialog = digitizerGUI.InputDialog()  # Создаем экземпляр класса InputDialog
-    x, y = dialog.get_inputs()  # Вызываем метод get_inputs для получения x и y
-    return float(x), float(y)
+    x, y, name_x, name_y = dialog.get_inputs()  # Вызываем метод get_inputs для получения x, y и имен осей
+    return float(x), float(y), name_x, name_y

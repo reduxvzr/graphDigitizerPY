@@ -10,6 +10,7 @@ import cv2 as cv
 import pyscreenshot as ImageGrab
 import os
 import shutil
+import csv
 
 DURATION_INT = 10
 
@@ -68,6 +69,12 @@ class InputDialog(QDialog):
         self.y_label = QLabel("Y:")
         self.y_input = QLineEdit()
 
+        self.x_axis_label = QLabel("Наименование оси X:")
+        self.x_axis_input = QLineEdit()
+
+        self.y_axis_label = QLabel("Наименование оси Y:")
+        self.y_axis_input = QLineEdit()
+
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -78,13 +85,17 @@ class InputDialog(QDialog):
         layout.addWidget(self.x_input)
         layout.addWidget(self.y_label)
         layout.addWidget(self.y_input)
+        layout.addWidget(self.x_axis_label)
+        layout.addWidget(self.x_axis_input)
+        layout.addWidget(self.y_axis_label)
+        layout.addWidget(self.y_axis_input)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
 
         self.setMinimumWidth(300)
 
     def get_inputs(self):
-        return self.x_input.text(), self.y_input.text()
+        return self.x_input.text(), self.y_input.text(), self.x_axis_input.text(), self.y_axis_input.text()
 
 class ErrorDialog(QDialog):
     def __init__(self, parent=None):
@@ -233,60 +244,136 @@ class DigitizerGUI(QMainWindow):
         if os.path.exists(self.filename):
             self.main_text.setText("Скриншот сохранен!")
         else:
-            self.main_text.setText("Ошибка: скриншот не сохранен")
-        
-        # Выводим отладочную информацию о текущем рабочем каталоге
-        print("Текущий рабочий каталог:", os.getcwd())
-        
+            self.main_text.setText("Ошибка: скриншот не был сохранен.")
+
         self.show_buttons()
-        self.btn_view_screenshot.show()
 
     def select_file(self):
-        options = QFileDialog.Option.ReadOnly
-        file_path, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "All Files (*);;Text Files (*.txt)", options=options)
-        if file_path:
-            filename = os.path.basename(file_path)
-            screenshot_path = os.path.join(os.getcwd(), filename)
-            shutil.copy(file_path, screenshot_path)
-            self.filename = filename
+        filename, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Images (*.png *.xpm *.jpg)")
+        if filename:
             self.choice = True
+            self.filename = os.path.basename(filename)  # Получаем только название файла без пути
+            self.main_text.setText(f"Файл выбран: {self.filename}")  # Отображаем только название файла
             self.show_buttons()
 
     def view_screenshot(self):
-        image = cv.imread(self.filename)
-        cv.imshow("Скриншот", image)
-        cv.waitKey(0)
-        cv.destroyAllWindows()
+        if self.filename:
+            img = cv.imread(self.filename)
+            cv.imshow('Скриншот', img)
+            cv.waitKey(0)
+            cv.destroyAllWindows()
 
     def analyze_graph(self):
-        dialog = InputDialog(self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            xGraph, yGraph = dialog.get_inputs()
-            try:
-                xGraph = float(xGraph)
-                yGraph = float(yGraph)
-                screenshot_path = self.filename
-
-                if os.path.exists(screenshot_path):
+        if self.filename:
+            dialog = InputDialog(self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                x_step, y_step, x_axis_name, y_axis_name = dialog.get_inputs()
+                try:
+                    x_step = float(x_step)
+                    y_step = float(y_step)
                     self.data_window = DataTableWindow()
-                    self.data_window.show()
-
-                    from graphAnalyzer import GraphAnalyzer
-                    analyzer = GraphAnalyzer(screenshot_path, xGraph, yGraph, self.data_window)
-                    analyzer.analyze()
-                else:
+                    self.graph_analyzer = GraphAnalyzer(self.filename, x_step, y_step, self.data_window, x_axis_name, y_axis_name)
+                    self.graph_analyzer.analyze()
+                    self.data_window.exec()
+                except ValueError:
                     error_dialog = ErrorDialog(self)
                     error_dialog.exec()
-                    print("Файл не найден.")
-            except ValueError:
-                error_dialog = ErrorDialog(self)
-                error_dialog.exec()
-                print("Пожалуйста, введите корректные числовые значения для X и Y.")
-        else:
-            print("Анализ графика отменен.")
 
-if __name__ == "__main__":
+class GraphAnalyzer:
+    def __init__(self, filename, x_step, y_step, data_window, nameX, nameY):
+        self.filename = filename
+        self.x_step = x_step
+        self.y_step = y_step
+        self.data_window = data_window
+        self.trashedWhiteLeft = 0
+        self.trashedWhiteBottom = 0
+        self.height, self.width = self.image_size()[:2]
+        self.image = None
+        self.fileCsv = open("GraphData.csv", 'w+', newline='')
+        self.writer = csv.writer(self.fileCsv)
+        self.nameX = nameX
+        self.nameY = nameY
+        self.writer.writerow([self.nameX, self.nameY])
+
+    def image_size(self):
+        image = cv.imread(self.filename)
+        height, width, channels = image.shape
+        return height, width, channels
+
+    def find_first_black_pixel(self):
+        graph = cv.imread(self.filename)
+        cv.cvtColor(graph, cv.COLOR_BGR2RGB)
+
+        (h, w) = graph.shape[:2]
+        (cX, cY) = (w // 2, h // 2)
+
+        y, x = 0, 0
+        newHeight, newWidth = cY, cX
+        croppedLeftTop = graph[y:newHeight, x:newWidth]
+
+        for i in range(0, newHeight):
+            for j in range(0, newWidth):
+                r, g, b = graph[i][j]
+                if r < 220 or g < 220 or b < 220:
+                    self.trashedWhiteLeft = j
+                    break
+
+        croppedRightBottom = graph[cY:h, 0:cX]
+
+        counter = 0
+        for i in range(newHeight, 0, -1):
+            for j in range(newHeight, 0, -1):
+                r, g, b = graph[i][j]
+                if r < 220 or g < 220 or b < 220:
+                    self.trashedWhiteBottom = counter
+                    counter += 1
+
+        self.height -= self.trashedWhiteLeft
+        self.width -= self.trashedWhiteBottom
+
+    def click_event(self, event, x, y, flags, params):
+        if event == cv.EVENT_LBUTTONDOWN:
+            otherX = round(x / self.x_step, 2)
+            otherY = round((self.height - y) / self.y_step, 2)
+            data = otherX, otherY
+            self.writer.writerow(data)
+            print(otherX, ' ', otherY)
+
+            self.data_window.add_data(otherX, otherY)
+
+            font = cv.FONT_HERSHEY_SIMPLEX
+            fontScale = 1
+            color = (0, 0, 0)
+            thickness = 4
+            cv.putText(self.image, ".", (x, y), font, fontScale, color, thickness)
+            cv.imshow('Graph', self.image)
+
+        if event == cv.EVENT_RBUTTONDOWN:
+            print((x / self.x_step), ' ', y / self.y_step)
+            font = cv.FONT_HERSHEY_SIMPLEX
+            fontScale = 0.4
+            color = (0, 0, 0)
+            thickness = 1
+            b = self.image[y, x, 0]
+            g = self.image[y, x, 1]
+            r = self.image[y, x, 2]
+            cv.putText(self.image, str(b) + ', ' + str(g) + ',' + str(r), (x, y), font, fontScale, color, thickness)
+            cv.imshow('image', self.image)
+
+    def analyze(self):
+        self.image = cv.imread(self.filename, 1)
+        self.find_first_black_pixel()
+        cv.imshow("Graph", self.image)
+        self.data_window.show()
+        print("\nКоординаты: ")
+        cv.setMouseCallback("Graph", self.click_event)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+        print("\nДанные сохранены в \"GraphData.csv\"!")
+        self.fileCsv.close()
+
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = DigitizerGUI()
-    window.show()
+    mainWin = DigitizerGUI()
+    mainWin.show()
     sys.exit(app.exec())

@@ -5,7 +5,7 @@ from PIL import Image
 import dumpNumbers
 
 class GraphAnalyzer:
-    def __init__(self, filename, x_step, y_step, data_window):
+    def __init__(self, filename, x_step, y_step, data_window, nameX, nameY):
         self.filename = filename
         self.x_step = x_step
         self.y_step = y_step
@@ -16,8 +16,8 @@ class GraphAnalyzer:
         self.image = None
         self.fileCsv = open("GraphData.csv", 'w+', newline='')
         self.writer = csv.writer(self.fileCsv)
-        self.nameX = "Сила тока"
-        self.nameY = "Напряжение"
+        self.nameX = nameX
+        self.nameY = nameY
         self.writer.writerow([self.nameX, self.nameY])
 
     def image_size(self):
@@ -64,7 +64,6 @@ class GraphAnalyzer:
             self.writer.writerow(data)
             print(otherX, ' ', otherY)
 
-            # Добавление данных в таблицу в интерфейсе
             self.data_window.add_data(otherX, otherY)
 
             font = cv.FONT_HERSHEY_SIMPLEX
