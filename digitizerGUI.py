@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QPushButton, QLabel, QWidget,
-    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem
+    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy
 )
 from PyQt6 import QtWidgets, QtCore
 import sys
@@ -134,7 +134,7 @@ class DataTableWindow(QDialog):
         self.table_widget.setHorizontalHeaderLabels([self.x_axis_name, self.y_axis_name])
 
         self.save_image_button = QPushButton("Сохранить изображение как")
-        self.import_label = QLabel("Экспортировать:")
+        self.export_label = QLabel("Экспортировать таблицу:")
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
 
@@ -143,21 +143,33 @@ class DataTableWindow(QDialog):
         self.export_csv_button.clicked.connect(self.export_to_csv)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.table_widget)
-        layout.addWidget(self.save_image_button)
-        layout.addWidget(self.import_label)
+        layout.addWidget(self.table_widget)  
+        layout.addWidget(self.export_label)
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
+
+        # Добавляем отступ перед кнопкой "save_image_button"
+        spacer = QSpacerItem(20, 80, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        layout.addItem(spacer)
+
+        layout.addWidget(self.save_image_button)
         self.setLayout(layout)
 
     def save_image_dialog(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
         if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
             temp_file_path = self.graph_analyzer.save_image_with_points()  # Используйте метод GraphAnalyzer
-            shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
-            os.remove(temp_file_path)  # Удалите временный файл после копирования
+            try:
+                shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
+                os.remove(temp_file_path)  # Удалите временный файл после копирования
+            except Exception as e:
+                error_dialog = ErrorDialog(self)
+                error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+                error_dialog.exec()
         else:
-            print("Ошибка копирования")
+            error_dialog = ErrorDialog(self)
+            error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+            error_dialog.exec()
 
 
     def add_data(self, x, y):
@@ -194,6 +206,7 @@ class DataTableWindow(QDialog):
                         if item is not None:
                             row_data.append(item.text())
                     writer.writerow(row_data)
+
 
 
 class DigitizerGUI(QMainWindow):
@@ -264,7 +277,7 @@ class DigitizerGUI(QMainWindow):
     def make_screenshot(self):
         self.stage = 0
         self.hide_buttons()
-        self.start_timer("Зафиксируйте курсор слева сверху на 10 секунд")
+        self.start_timer("Зафиксируйте курсор СЛЕВА СВЕРХУ на 10 секунд")
 
     def hide_buttons(self):
         self.btn_screenshot.hide()
@@ -284,6 +297,11 @@ class DigitizerGUI(QMainWindow):
             self.btn_analyze_graph.show()
 
     def start_timer(self, message):
+        if "СЛЕВА СВЕРХУ" in message:
+            message = message.replace("СЛЕВА СВЕРХУ", "<b>СЛЕВА СВЕРХУ</b>")
+        elif "СПРАВА СНИЗУ" in message:
+            message = message.replace("СПРАВА СНИЗУ", "<b>СПРАВА СНИЗУ</b>")
+
         self.main_text.setText(message)
         self.timerWidget.show()
         self.timerWidget.startTimer()
@@ -292,7 +310,7 @@ class DigitizerGUI(QMainWindow):
         if self.stage == 0:
             self.pointX1, self.pointY1 = pyautogui.position()
             self.stage = 1
-            self.start_timer("Зафиксируйте курсор справа снизу на 10 секунд")
+            self.start_timer("Зафиксируйте курсор СПРАВА СНИЗУ на 10 секунд")
         elif self.stage == 1:
             self.pointX2, self.pointY2 = pyautogui.position()
             self.capture_screenshot()
@@ -314,8 +332,10 @@ class DigitizerGUI(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Images (*.png *.xpm *.jpg)")
         if filename:
             self.choice = True
-            self.filename = os.path.basename(filename)  # Получаем только название файла без пути
-            self.main_text.setText(f"Файл выбран: {self.filename}")  # Отображаем только название файла
+            # Получаем полный путь к файлу
+            self.filename = os.path.abspath(filename)
+            # Отображаем только название файла
+            self.main_text.setText(f"Файл выбран: {os.path.basename(self.filename)}")
             self.show_buttons()
 
     def view_screenshot(self):
