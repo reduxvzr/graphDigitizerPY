@@ -11,7 +11,8 @@ import pyscreenshot as ImageGrab
 import os
 import csv
 from openpyxl import Workbook
-
+import shutil
+import tempfile
 
 DURATION_INT = 10
 
@@ -122,8 +123,8 @@ class ErrorDialog(QDialog):
 class DataTableWindow(QDialog):
     def __init__(self, x_axis_name, y_axis_name):
         super().__init__()
-        self.final_image = None
-
+        self.graph_analyzer = None
+        
         self.setWindowTitle("Ваши данные:")
         self.setGeometry(400, 300, 400, 300)
         self.x_axis_name = x_axis_name
@@ -137,7 +138,7 @@ class DataTableWindow(QDialog):
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
 
-        self.save_image_button.clicked.connect(self.save_image)
+        self.save_image_button.clicked.connect(self.save_image_dialog)
         self.export_xlsx_button.clicked.connect(self.export_to_xlsx)
         self.export_csv_button.clicked.connect(self.export_to_csv)
 
@@ -148,6 +149,16 @@ class DataTableWindow(QDialog):
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
         self.setLayout(layout)
+
+    def save_image_dialog(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
+        if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
+            temp_file_path = self.graph_analyzer.save_image_with_points()  # Используйте метод GraphAnalyzer
+            shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
+            os.remove(temp_file_path)  # Удалите временный файл после копирования
+        else:
+            print("Ошибка копирования")
+
 
     def add_data(self, x, y):
         row_position = self.table_widget.rowCount()
@@ -184,10 +195,6 @@ class DataTableWindow(QDialog):
                             row_data.append(item.text())
                     writer.writerow(row_data)
 
-    def save_image(self):
-        save_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "Images (*.png *.jpg)")
-        if save_path:
-            self.graph_analyzer.save_image_with_points(save_path)
 
 class DigitizerGUI(QMainWindow):
     def __init__(self):
@@ -329,6 +336,7 @@ class DigitizerGUI(QMainWindow):
                     self.data_window = DataTableWindow(x_axis_name, y_axis_name)
                     self.graph_analyzer = GraphAnalyzer(self.filename, x_step, y_step, self.data_window, x_axis_name, y_axis_name)
                     self.graph_analyzer.analyze()
+                    self.data_window.graph_analyzer = self.graph_analyzer
                     self.data_window.exec()
                 except ValueError:
                     error_dialog = ErrorDialog(self)
@@ -344,10 +352,11 @@ class GraphAnalyzer:
         self.trashedWhiteBottom = 0
         self.height, self.width = self.image_size()[:2]
         self.image = None
-        self.fileCsv = open("GraphData.csv", 'w+', newline='')
-        self.writer = csv.writer(self.fileCsv)
+        self.points = []  # Хранение координат точек
         self.nameX = nameX
         self.nameY = nameY
+        self.fileCsv = open("GraphData.csv", 'w+', newline='')
+        self.writer = csv.writer(self.fileCsv)
         self.writer.writerow([self.nameX, self.nameY])
 
     def image_size(self):
@@ -397,6 +406,9 @@ class GraphAnalyzer:
 
             self.data_window.add_data(otherX, otherY)
 
+            # Сохраняем координаты точек для последующего использования
+            self.points.append((x, y))
+
             font = cv.FONT_HERSHEY_SIMPLEX
             fontScale = 1
             color = (0, 0, 0)
@@ -405,22 +417,33 @@ class GraphAnalyzer:
             cv.imshow('Graph', self.image)
 
         if event == cv.EVENT_RBUTTONDOWN:
-            if event == cv.EVENT_RBUTTONDOWN:
-                otherX = round(x / self.x_step, 2)
-                otherY = round((self.height - y) / self.y_step, 2)
-                data = otherX, otherY
-                self.writer.writerow(data)
-                print(otherX, ' ', otherY)
+            otherX = round(x / self.x_step, 2)
+            otherY = round((self.height - y) / self.y_step, 2)
+            data = otherX, otherY
+            self.writer.writerow(data)
+            print(otherX, ' ', otherY)
 
-                self.data_window.add_data(otherX, otherY)
+            self.data_window.add_data(otherX, otherY)
 
-                font = cv.FONT_HERSHEY_SIMPLEX
-                fontScale = 0.5  # Уменьшаем размер текста
-                color = (0, 165, 255)  # оранжевый цвет
-                thickness = 2
-                cv.putText(self.image, f"({otherX}, {otherY})", (x, y), font, fontScale, color, thickness)
-                cv.circle(self.image, (x, y), 3, color, -1)  # Рисуем черную точку вместо текста
-                cv.imshow('Graph', self.image)
+            font = cv.FONT_HERSHEY_SIMPLEX
+            fontScale = 0.5  # Уменьшаем размер текста
+            color = (0, 165, 255)  # оранжевый цвет
+            thickness = 2
+            cv.putText(self.image, f"({otherX}, {otherY})", (x, y), font, fontScale, color, thickness)
+            cv.circle(self.image, (x, y), 3, color, -1)  # Рисуем черную точку вместо текста
+            cv.imshow('Graph', self.image)
+
+    def save_image_with_points(self):
+        # Создание временного файла для сохранения изображения с точками
+        temp_file_path = tempfile.mktemp(suffix='.png')
+
+        # Сохранение изображения с точками во временном файле
+        image_with_points = self.image.copy()
+        for point in self.points:
+            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)
+        cv.imwrite(temp_file_path, image_with_points)
+
+        return temp_file_path
 
     def analyze(self):
         self.image = cv.imread(self.filename, 1)
