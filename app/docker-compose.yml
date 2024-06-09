@@ -1,15 +1,18 @@
-version: "3.9"
+version: '3.9'
+
 services:
-  postgres: 
+  db: 
     container_name: postgres_container
     image: postgres:latest
     restart: always
     environment:
       POSTGRES_USER: root
-      POSTGRES_PASSWORD: yourPassword
+      POSTGRES_PASSWORD: 1234
       POSTGRES_DB: "USER_INFO"
     ports: 
       - "5432:5432"
+    #volumes:
+    # - ./init-scripts:/docker-entrypoint-initdb.d
   
   pgadmin:
     container_name: pgadmin_container
@@ -17,7 +20,7 @@ services:
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com 
-      PGADMIN_DEFAULT_PASSWORD: root
+      PGADMIN_DEFAULT_PASSWORD: 1234
     ports: 
       - 8080:80
       

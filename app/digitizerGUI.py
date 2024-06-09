@@ -137,22 +137,26 @@ class DataTableWindow(QDialog):
         self.export_label = QLabel("Экспортировать таблицу:")
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
+        self.feedback_button = QPushButton("Оставить отзыв")
 
         self.save_image_button.clicked.connect(self.save_image_dialog)
         self.export_xlsx_button.clicked.connect(self.export_to_xlsx)
         self.export_csv_button.clicked.connect(self.export_to_csv)
+        self.feedback_button.clicked.connect(self.leave_feedback)
 
         layout = QVBoxLayout()
         layout.addWidget(self.table_widget)  
         layout.addWidget(self.export_label)
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
+       
 
         # Добавляем отступ перед кнопкой "save_image_button"
         spacer = QSpacerItem(20, 80, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         layout.addItem(spacer)
 
         layout.addWidget(self.save_image_button)
+        layout.addWidget(self.feedback_button)
         self.setLayout(layout)
 
     def save_image_dialog(self):
@@ -206,7 +210,50 @@ class DataTableWindow(QDialog):
                         if item is not None:
                             row_data.append(item.text())
                     writer.writerow(row_data)
+    
+    def leave_feedback(self):
+        dialog = FeedbackDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name, rating, comments = dialog.get_feedback()
+            print(f"ФИО: {name}, Оценка: {rating}, Пожелания: {comments}")
+            # Здесь вы можете сохранить данные в файл или обработать их другим образом
 
+from PyQt6.QtWidgets import (
+    QDialog, QLabel, QLineEdit, QDialogButtonBox, QVBoxLayout,
+    QTextEdit, QComboBox
+)
+
+class FeedbackDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Оставить отзыв")
+
+        self.name_label = QLabel("ФИО:")
+        self.name_input = QLineEdit()
+
+        self.rating_label = QLabel("Оценка (1-5):")
+        self.rating_input = QComboBox()
+        self.rating_input.addItems(["1", "2", "3", "4", "5"])
+
+        self.comments_label = QLabel("Ваши пожелания:")
+        self.comments_input = QTextEdit()
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.name_input)
+        layout.addWidget(self.rating_label)
+        layout.addWidget(self.rating_input)
+        layout.addWidget(self.comments_label)
+        layout.addWidget(self.comments_input)
+        layout.addWidget(self.buttonBox)
+        self.setLayout(layout)
+
+    def get_feedback(self):
+        return self.name_input.text(), self.rating_input.currentText(), self.comments_input.toPlainText()
 
 
 class DigitizerGUI(QMainWindow):
@@ -455,16 +502,21 @@ class GraphAnalyzer:
 
     def save_image_with_points(self):
         # Создание временного файла для сохранения изображения с точками
-        temp_file_path = tempfile.mktemp(suffix='.png')
+        try:
+            temp_file_path = tempfile.mktemp(suffix='.png')
+            image_with_points = self.image.copy()
+            for point in self.points:
+                cv.circle(image_with_points, point, 5, (0, 255, 0), -1)
+            cv.imwrite(temp_file_path, image_with_points)
+            
+            # Проверка существования временного файла
+            if not os.path.exists(temp_file_path):
+                raise FileNotFoundError(f"Временный файл не создан: {temp_file_path}")
 
-        # Сохранение изображения с точками во временном файле
-        image_with_points = self.image.copy()
-        for point in self.points:
-            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)
-        cv.imwrite(temp_file_path, image_with_points)
-
-        return temp_file_path
-
+            return temp_file_path
+        except Exception as e:
+            print(f"Ошибка при создании временного файла: {str(e)}")
+            return None
     def analyze(self):
         self.image = cv.imread(self.filename, 1)
         self.find_first_black_pixel()
