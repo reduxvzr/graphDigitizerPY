@@ -19,7 +19,7 @@ from graphAnalyzer import GraphAnalyzer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'db'))
 
 # Импортируем функцию database из dbWork
-from dbWork import database
+from dbWork import database, insert_input_data
 
 DURATION_INT = 10
 
@@ -107,7 +107,13 @@ class InputDialog(QDialog):
 
         self.setMinimumWidth(300)
 
+
+        
+
     def get_inputs(self):
+        user_name = os.getlogin()
+        insert_input_data(user_name, self.x_input.text(), self.y_input.text(), self.x_axis_input.text(), self.y_axis_input.text())
+
         return self.x_input.text(), self.y_input.text(), self.x_axis_input.text(), self.y_axis_input.text()
 
 class ErrorDialog(QDialog):
