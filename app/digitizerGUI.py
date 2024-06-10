@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QPushButton, QLabel, QWidget,
-    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy
+    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy, QMessageBox
 )
 from PyQt6 import QtWidgets, QtCore
 import sys
@@ -161,19 +161,20 @@ class DataTableWindow(QDialog):
 
     def save_image_dialog(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
-        if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
-            temp_file_path = self.graph_analyzer.save_image_with_points()  # Используйте метод GraphAnalyzer
+        if file_path and self.graph_analyzer and self.graph_analyzer.image:  # Check for image presence
             try:
-                shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
-                os.remove(temp_file_path)  # Удалите временный файл после копирования
+                temp_file_path = self.graph_analyzer.save_image_with_points()
+                shutil.copy(temp_file_path, file_path)
+                os.remove(temp_file_path)
+                self.accept()
             except Exception as e:
-                error_dialog = ErrorDialog(self)
-                error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-                error_dialog.exec()
+                print(f"Ошибка при сохранении изображения: {e}")
+                QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
         else:
-            error_dialog = ErrorDialog(self)
-            error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-            error_dialog.exec()
+            QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
+
+
+
 
 
     def add_data(self, x, y):
@@ -501,22 +502,15 @@ class GraphAnalyzer:
             cv.imshow('Graph', self.image)
 
     def save_image_with_points(self):
-        # Создание временного файла для сохранения изображения с точками
-        try:
-            temp_file_path = tempfile.mktemp(suffix='.png')
-            image_with_points = self.image.copy()
-            for point in self.points:
-                cv.circle(image_with_points, point, 5, (0, 255, 0), -1)
-            cv.imwrite(temp_file_path, image_with_points)
-            
-            # Проверка существования временного файла
-            if not os.path.exists(temp_file_path):
-                raise FileNotFoundError(f"Временный файл не создан: {temp_file_path}")
+        temp_file_path = tempfile.mktemp(suffix=".png")
+        cv.imwrite(temp_file_path, self.image)
+        for point in self.points:
+            cv.circle(self.image, point, 3, (0, 0, 255), -1)  # Red color
+        cv.imwrite(temp_file_path, self.image)
+        return temp_file_path
 
-            return temp_file_path
-        except Exception as e:
-            print(f"Ошибка при создании временного файла: {str(e)}")
-            return None
+
+
     def analyze(self):
         self.image = cv.imread(self.filename, 1)
         self.find_first_black_pixel()

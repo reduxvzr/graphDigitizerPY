@@ -1,0 +1,8 @@
+PyQt6==6.3.0
+pyautogui==0.9.53
+numpy==1.23.1
+opencv-python==4.6.0.66
+Pillow==9.2.0
+pyscreenshot==3.0
+openpyxl==3.0.10
+
