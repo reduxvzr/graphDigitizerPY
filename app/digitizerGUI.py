@@ -19,7 +19,7 @@ from graphAnalyzer import GraphAnalyzer
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'db'))
 
 # Импортируем функцию database из dbWork
-from dbWork import database, insert_input_data
+from dbWork import insert_user_feedback, insert_input_data
 
 DURATION_INT = 10
 
@@ -106,9 +106,7 @@ class InputDialog(QDialog):
         self.setLayout(layout)
 
         self.setMinimumWidth(300)
-
-
-        
+   
 
     def get_inputs(self):
         user_name = os.getlogin()
@@ -121,9 +119,11 @@ class ErrorDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Ошибка ввода")
         
-        self.error_label = QLabel("Пожалуйста, введите корректные числовые значения для X и Y.", self)
-        self.error_label.setStyleSheet("font: 12pt Helvetica")
-        self.error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # self.error_label = QLabel("Пожалуйста, введите корректные числовые значения для X и Y.", self)
+        # self.error_label.setStyleSheet("font: 12pt Helvetica")
+        # self.error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        print("Введены неправильные данные")
+        QMessageBox.critical(self, "Ошибка", "Пожалуйста, введите корректные числовые значения для X и Y.")
 
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
@@ -172,20 +172,6 @@ class DataTableWindow(QDialog):
         layout.addWidget(self.feedback_button)
         self.setLayout(layout)
 
-    # def save_image_dialog(self):
-    #     file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
-    #     if file_path and self.graph_analyzer and self.graph_analyzer.image:  # Check for image presence
-    #         try:
-    #             temp_file_path = self.graph_analyzer.save_image_with_points()
-    #             shutil.copy(temp_file_path, file_path)
-    #             os.remove(temp_file_path)
-    #             self.accept()
-    #         except Exception as e:
-    #             print(f"Ошибка при сохранении изображения: {e}")
-    #             QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
-    #     else:
-    #         QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
-
     def save_image_dialog(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
         if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
@@ -194,17 +180,11 @@ class DataTableWindow(QDialog):
                 shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
                 os.remove(temp_file_path)  # Удалите временный файл после копирования
             except Exception as e:
-                # error_dialog = ErrorDialog(self)
-                # error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-                # error_dialog.exec()
                 print(f"Ошибка при сохранении изображения: {e}")
                 QMessageBox.critical(self, "Ошибка", "Закройте изображение графика перед сохранением")
 
         else:
              QMessageBox.critical(self, "Ошибка", "Закройте изображение графика перед сохранением")
-
-
-
 
 
     def add_data(self, x, y):
@@ -248,7 +228,7 @@ class DataTableWindow(QDialog):
             name, rating, comments = dialog.get_feedback()
             print(f"ФИО: {name}, Оценка: {rating}, Пожелания: {comments}")
             # Здесь вы можете сохранить данные в файл или обработать их другим образом
-            database(name, int(rating), comments)
+            insert_user_feedback(name, int(rating), comments)
 
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QLineEdit, QDialogButtonBox, QVBoxLayout,
@@ -467,6 +447,7 @@ class DigitizerGUI(QMainWindow):
                 except ValueError:
                     error_dialog = ErrorDialog(self)
                     error_dialog.exec()
+                    
     def closeEvent(self, event):
         self.cleanup()
         event.accept()
