@@ -93,6 +93,17 @@ class GraphAnalyzer:
             cv.circle(self.image, (x, y), 3, color, -1)  # Рисуем черную точку вместо текста
             cv.imshow('Graph', self.image)
 
+    # def save_image_with_points(self):
+    #     # Создание временного файла для сохранения изображения с точками
+    #     temp_file_path = tempfile.mktemp(suffix='.png')
+
+    #     # Сохранение изображения с точками во временном файле
+    #     image_with_points = self.image.copy()
+    #     for point in self.points:
+    #         cv.circle(image_with_points, point, 5, (0, 255, 0), -1)  # Убрана обводка
+    #     cv.imwrite(temp_file_path, image_with_points)
+
+    #     return temp_file_path
     def save_image_with_points(self):
         # Создание временного файла для сохранения изображения с точками
         temp_file_path = tempfile.mktemp(suffix='.png')

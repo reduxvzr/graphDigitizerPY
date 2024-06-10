@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QPushButton, QLabel, QWidget,
-    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy, QMessageBox
-)
+    QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy, QMessageBox)
+
 from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtGui import QPixmap
 import sys
 import pyautogui
 import numpy as np
@@ -187,13 +188,14 @@ class DataTableWindow(QDialog):
                 shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
                 os.remove(temp_file_path)  # Удалите временный файл после копирования
             except Exception as e:
-                error_dialog = ErrorDialog(self)
-                error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-                error_dialog.exec()
+                # error_dialog = ErrorDialog(self)
+                # error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+                # error_dialog.exec()
+                print(f"Ошибка при сохранении изображения: {e}")
+                QMessageBox.critical(self, "Ошибка", "Закройте изображение графика перед сохранением")
+
         else:
-            error_dialog = ErrorDialog(self)
-            error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-            error_dialog.exec()
+             QMessageBox.critical(self, "Ошибка", "Закройте изображение графика перед сохранением")
 
 
 
@@ -283,7 +285,7 @@ class FeedbackDialog(QDialog):
 class DigitizerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-
+    
         self.setWindowTitle("Оцифровка графика")
         self.setGeometry(300, 250, 450, 200)
 
@@ -399,6 +401,7 @@ class DigitizerGUI(QMainWindow):
 
         self.show_buttons()
 
+
     def select_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Images (*.png *.xpm *.jpg)")
         if filename:
@@ -410,11 +413,37 @@ class DigitizerGUI(QMainWindow):
             self.show_buttons()
 
     def view_screenshot(self):
+        print("Нажата кнопка для просмотра скриншота")  # Отладочное сообщение
         if self.filename:
-            img = cv.imread(self.filename)
-            cv.imshow('Скриншот', img)
-            cv.waitKey(0)
-            cv.destroyAllWindows()
+            #print(f"Путь к файлу: {self.filename}")  # Отладочное сообщение
+            if os.path.exists(self.filename):
+                print("Файл существует")  # Отладочное сообщение
+                pixmap = QPixmap(self.filename)
+                if not pixmap.isNull():
+                    #print("Изображение загружено успешно")  # Отладочное сообщение
+                    
+                    dialog = QDialog(self)
+                    dialog.setWindowTitle('Скриншот')
+                    
+                    layout = QVBoxLayout()
+                    label = QLabel()
+                    label.setPixmap(pixmap)
+                    label.setScaledContents(True)
+                    layout.addWidget(label)
+                    
+                    dialog.setLayout(layout)
+                    dialog.setGeometry(100, 100, pixmap.width(), pixmap.height())
+                    dialog.exec()
+                else:
+                    print("Ошибка: не удалось загрузить изображение.")
+                    QMessageBox.critical(self, "Ошибка", "Не удалось загрузить изображение")
+            else:
+                print("Ошибка: файл не существует.")
+                QMessageBox.critical(self, "Ошибка", "Файл не существует")
+        else:
+            print("Ошибка: путь к файлу не задан.")
+            QMessageBox.critical(self, "Ошибка", "Путь к файлу не задан")
+
 
     def analyze_graph(self):
         if self.filename:
