@@ -14,6 +14,12 @@ from openpyxl import Workbook
 import shutil
 import tempfile
 
+# Добавляем путь к папке db в список путей поиска модулей
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'db'))
+
+# Импортируем функцию database из dbWork
+from dbWork import database
+
 DURATION_INT = 10
 
 def secs_to_minsec(secs: int):
@@ -161,19 +167,19 @@ class DataTableWindow(QDialog):
 
     def save_image_dialog(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
-        if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
-            temp_file_path = self.graph_analyzer.save_image_with_points()  # Используйте метод GraphAnalyzer
-            try:
-                shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
-                os.remove(temp_file_path)  # Удалите временный файл после копирования
-            except Exception as e:
-                error_dialog = ErrorDialog(self)
-                error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
-                error_dialog.exec()
+        if file_path:
+            self.save_graph_screenshot(file_path)
         else:
             error_dialog = ErrorDialog(self)
-            error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+            error_dialog.error_label.setText("Пожалуйста, выберите файл для сохранения.")
             error_dialog.exec()
+
+    def save_graph_screenshot(self, file_path):
+        # Захватываем скриншот всего экрана
+        screenshot = pyautogui.screenshot()
+
+        # Сохраняем скриншот в указанный файл
+        screenshot.save(file_path)
 
 
     def add_data(self, x, y):
@@ -217,6 +223,7 @@ class DataTableWindow(QDialog):
             name, rating, comments = dialog.get_feedback()
             print(f"ФИО: {name}, Оценка: {rating}, Пожелания: {comments}")
             # Здесь вы можете сохранить данные в файл или обработать их другим образом
+            database(name, int(rating), comments)
 
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QLineEdit, QDialogButtonBox, QVBoxLayout,
