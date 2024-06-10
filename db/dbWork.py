@@ -2,8 +2,8 @@ import psycopg
 
 from configure import host, user, password, db_name
 
-def database(): 
-    connection = None  # Initialize connection to None
+def database(name, rating, comments):
+    connection = None
     try:
         # Connect to the existing database
         connection = psycopg.connect(
@@ -34,8 +34,8 @@ def database():
 
         with connection.cursor() as cursor: 
             cursor.execute(""" 
-            INSERT INTO users (fullname, rating, suggestion) VALUES 
-            ('test', 5, 'test');""")
+            INSERT INTO users (fullname, rating, suggestion) VALUES (%s, %s, %s);
+            """, (name, rating, comments))
     except Exception as _ex:
         print("INFO: Ошибка при работе с БД PostgreSQL")
         print(_ex)
