@@ -159,19 +159,35 @@ class DataTableWindow(QDialog):
         layout.addWidget(self.feedback_button)
         self.setLayout(layout)
 
+    # def save_image_dialog(self):
+    #     file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
+    #     if file_path and self.graph_analyzer and self.graph_analyzer.image:  # Check for image presence
+    #         try:
+    #             temp_file_path = self.graph_analyzer.save_image_with_points()
+    #             shutil.copy(temp_file_path, file_path)
+    #             os.remove(temp_file_path)
+    #             self.accept()
+    #         except Exception as e:
+    #             print(f"Ошибка при сохранении изображения: {e}")
+    #             QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
+    #     else:
+    #         QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
+
     def save_image_dialog(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить изображение", "", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg)")
-        if file_path and self.graph_analyzer and self.graph_analyzer.image:  # Check for image presence
+        if file_path and self.graph_analyzer:  # Убедимся, что self.graph_analyzer не None
+            temp_file_path = self.graph_analyzer.save_image_with_points()  # Используйте метод GraphAnalyzer
             try:
-                temp_file_path = self.graph_analyzer.save_image_with_points()
-                shutil.copy(temp_file_path, file_path)
-                os.remove(temp_file_path)
-                self.accept()
+                shutil.copy(temp_file_path, file_path)  # Копируйте временный файл в выбранное место
+                os.remove(temp_file_path)  # Удалите временный файл после копирования
             except Exception as e:
-                print(f"Ошибка при сохранении изображения: {e}")
-                QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
+                error_dialog = ErrorDialog(self)
+                error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+                error_dialog.exec()
         else:
-            QMessageBox.critical(self, "Ошибка", "Не удалось сохранить изображение")
+            error_dialog = ErrorDialog(self)
+            error_dialog.error_label.setText("Закройте изображение графика перед сохранением")
+            error_dialog.exec()
 
 
 
@@ -409,6 +425,13 @@ class DigitizerGUI(QMainWindow):
                 except ValueError:
                     error_dialog = ErrorDialog(self)
                     error_dialog.exec()
+    def closeEvent(self, event):
+        self.cleanup()
+        event.accept()
+        
+    def cleanup(self):
+        # Любая дополнительная очистка
+        QApplication.quit()
 
 class GraphAnalyzer:
     def __init__(self, filename, x_step, y_step, data_window, nameX, nameY):
@@ -502,12 +525,17 @@ class GraphAnalyzer:
             cv.imshow('Graph', self.image)
 
     def save_image_with_points(self):
-        temp_file_path = tempfile.mktemp(suffix=".png")
-        cv.imwrite(temp_file_path, self.image)
+        # Создание временного файла для сохранения изображения с точками
+        temp_file_path = tempfile.mktemp(suffix='.png')
+
+        # Сохранение изображения с точками во временном файле
+        image_with_points = self.image.copy()
         for point in self.points:
-            cv.circle(self.image, point, 3, (0, 0, 255), -1)  # Red color
-        cv.imwrite(temp_file_path, self.image)
+            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)  # Убрана обводка
+        cv.imwrite(temp_file_path, image_with_points)
+
         return temp_file_path
+
 
 
 
