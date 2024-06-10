@@ -1,8 +1,8 @@
-PyQt6==6.3.0
-pyautogui==0.9.53
-numpy==1.23.1
-opencv-python==4.6.0.66
-Pillow==9.2.0
-pyscreenshot==3.0
-openpyxl==3.0.10
+PyQt6==6.7.0
+pyautogui==0.9.54
+numpy==1.26.4
+opencv-python==4.10.0.82
+Pillow==10.3.0
+pyscreenshot==3.1
+openpyxl==3.1.3
 
