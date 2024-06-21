@@ -1,6 +1,7 @@
-import cv2 as cv 
-import csv 
+import cv2 as cv
+import csv
 import tempfile
+import numpy as np
 
 class GraphAnalyzer:
     def __init__(self, filename, x_step, y_step, data_window, nameX, nameY):
@@ -29,91 +30,59 @@ class GraphAnalyzer:
 
     def find_first_black_pixel(self):
         graph = cv.imread(self.filename)
-        cv.cvtColor(graph, cv.COLOR_BGR2RGB)
+        gray = cv.cvtColor(graph, cv.COLOR_BGR2GRAY)
+        _, binary = cv.threshold(gray, 220, 255, cv.THRESH_BINARY)
 
-        (h, w) = graph.shape[:2]
-        (cX, cY) = (w // 2, h // 2)
+        # Left margin
+        for x in range(binary.shape[1]):
+            if np.any(binary[:, x] == 0):
+                self.trashedWhiteLeft = x
+                break
 
-        y, x = 0, 0
-        newHeight, newWidth = cY, cX
-        croppedLeftTop = graph[y:newHeight, x:newWidth]
+        # Bottom margin
+        for y in range(binary.shape[0]-1, -1, -1):
+            if np.any(binary[y, :] == 0):
+                self.trashedWhiteBottom = binary.shape[0] - y
+                break
 
-        for i in range(0, newHeight):
-            for j in range(0, newWidth):
-                r, g, b = graph[i][j]
-                if r < 220 or g < 220 or b < 220:
-                    self.trashedWhiteLeft = j
-                    break
-
-        counter = 0
-        for i in range(newHeight, 0, -1):
-            for j in range(newHeight, 0, -1):
-                r, g, b = graph[i][j]
-                if r < 220 or g < 220 or b < 220:
-                    self.trashedWhiteBottom = counter
-                    counter += 1
-
-        self.height -= self.trashedWhiteLeft
-        self.width -= self.trashedWhiteBottom
+        self.height -= self.trashedWhiteBottom
+        self.width -= self.trashedWhiteLeft
 
     def click_event(self, event, x, y, flags, params):
-        if event == cv.EVENT_LBUTTONDOWN:
-            otherX = round(x / self.x_step, 2)
-            otherY = round((self.height - y) / self.y_step, 2)
-            data = otherX, otherY
+        if event == cv.EVENT_LBUTTONDOWN or event == cv.EVENT_RBUTTONDOWN:
+            corrected_x = x - self.trashedWhiteLeft
+            corrected_y = y - self.trashedWhiteBottom
+
+            if corrected_x < 0 or corrected_y < 0:
+                print("Click outside the graph area.")
+                return
+
+            otherX = round(corrected_x / self.width * (self.x_step - 1),3)
+            otherY = round(((self.height - corrected_y) / self.height * (self.y_step - 1) + 1), 3)
+            data = round(otherX, 3), round(otherY, 3)
             self.writer.writerow(data)
-            print(otherX, ' ', otherY)
+            print(f"Clicked at: ({x}, {y}), corrected: ({corrected_x}, {corrected_y}), result: {otherX}, {otherY}")
 
             self.data_window.add_data(otherX, otherY)
 
-            # Сохраняем координаты точек для последующего использования
-            self.points.append((x, y))
-
-            font = cv.FONT_HERSHEY_SIMPLEX
-            fontScale = 1
-            color = (0, 0, 0)
-            thickness = 4
-            cv.putText(self.image, ".", (x, y), font, fontScale, color, thickness)
+            if event == cv.EVENT_LBUTTONDOWN:
+                color = (0, 0, 0)
+                cv.circle(self.image, (x, y), 3, color, -1)
+            elif event == cv.EVENT_RBUTTONDOWN:
+                font = cv.FONT_HERSHEY_SIMPLEX
+                fontScale = 0.5
+                color = (0, 165, 255)
+                thickness = 2
+                cv.putText(self.image, f"({otherX:.3f}, {otherY:.3f})", (x, y), font, fontScale, color, thickness)
+            
             cv.imshow('Graph', self.image)
 
-        if event == cv.EVENT_RBUTTONDOWN:
-            otherX = round(x / self.x_step, 2)
-            otherY = round((self.height - y) / self.y_step, 2)
-            data = otherX, otherY
-            self.writer.writerow(data)
-            print(otherX, ' ', otherY)
-
-            self.data_window.add_data(otherX, otherY)
-
-            font = cv.FONT_HERSHEY_SIMPLEX
-            fontScale = 0.5  # Уменьшаем размер текста
-            color = (0, 165, 255)  # оранжевый цвет
-            thickness = 2
-            cv.putText(self.image, f"({otherX}, {otherY})", (x, y), font, fontScale, color, thickness)
-            cv.circle(self.image, (x, y), 3, color, -1)  # Рисуем черную точку вместо текста
-            cv.imshow('Graph', self.image)
-
-    # def save_image_with_points(self):
-    #     # Создание временного файла для сохранения изображения с точками
-    #     temp_file_path = tempfile.mktemp(suffix='.png')
-
-    #     # Сохранение изображения с точками во временном файле
-    #     image_with_points = self.image.copy()
-    #     for point in self.points:
-    #         cv.circle(image_with_points, point, 5, (0, 255, 0), -1)  # Убрана обводка
-    #     cv.imwrite(temp_file_path, image_with_points)
-
-    #     return temp_file_path
     def save_image_with_points(self):
-        # Создание временного файла для сохранения изображения с точками
         temp_file_path = tempfile.mktemp(suffix='.png')
-
-        # Сохранение изображения с точками во временном файле
         image_with_points = self.image.copy()
         for point in self.points:
-            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)  # Убрана обводка
+            cv.circle(image_with_points, point, 5, (0, 255, 0), -1)
         cv.imwrite(temp_file_path, image_with_points)
-
         return temp_file_path
 
     def analyze(self):

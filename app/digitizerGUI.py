@@ -93,7 +93,7 @@ class InputDialog(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(self.info_label)
         layout.addWidget(self.x_label)
-        layout.addWidget(self.x_input)
+        layout.addWidget(self.x_input) 
         layout.addWidget(self.y_label)
         layout.addWidget(self.y_input)
         layout.addWidget(self.x_axis_label)
@@ -150,11 +150,13 @@ class DataTableWindow(QDialog):
         self.export_label = QLabel("Экспортировать таблицу:")
         self.export_xlsx_button = QPushButton("Как xlsx")
         self.export_csv_button = QPushButton("Как csv")
+        self.save_history_button = QPushButton("Сохранить в историю")
         self.feedback_button = QPushButton("Оставить отзыв")
 
         self.save_image_button.clicked.connect(self.save_image_dialog)
         self.export_xlsx_button.clicked.connect(self.export_to_xlsx)
         self.export_csv_button.clicked.connect(self.export_to_csv)
+        self.save_history_button.clicked.connect(self.save_history)
         self.feedback_button.clicked.connect(self.leave_feedback)
 
         layout = QVBoxLayout()
@@ -162,6 +164,7 @@ class DataTableWindow(QDialog):
         layout.addWidget(self.export_label)
         layout.addWidget(self.export_xlsx_button)
         layout.addWidget(self.export_csv_button)
+        layout.addWidget(self.save_history_button)
        
 
         # Добавляем отступ перед кнопкой "save_image_button"
@@ -221,6 +224,9 @@ class DataTableWindow(QDialog):
                         if item is not None:
                             row_data.append(item.text())
                     writer.writerow(row_data)
+
+    def save_history(self): 
+        print("Нажали кнопку сохранения истории")
     
     def leave_feedback(self):
         dialog = FeedbackDialog(self)
@@ -294,6 +300,20 @@ class DigitizerGUI(QMainWindow):
         self.btn_select_file.setStyleSheet("font: 15pt Helvetica")
         self.btn_select_file.clicked.connect(self.select_file)
 
+        self.btn_history = QPushButton(self)
+        self.btn_history.setText("История")
+        self.btn_history.setFixedWidth(200)
+        self.btn_history.setFixedHeight(100)
+        self.btn_history.setStyleSheet("font: 15pt Helvetica")
+        self.btn_history.clicked.connect(self.view_history)
+
+        self.btn_exported_files = QPushButton(self)
+        self.btn_exported_files.setText("Экспортированные\nфайлы")
+        self.btn_exported_files.setFixedWidth(200)
+        self.btn_exported_files.setFixedHeight(100)
+        self.btn_exported_files.setStyleSheet("font: 15pt Helvetica; text-align: center;")
+        self.btn_exported_files.clicked.connect(self.view_exported_files)
+
         self.btn_view_screenshot = QPushButton(self)
         self.btn_view_screenshot.setText("Просмотреть скриншот")
         button_width = self.width()
@@ -321,8 +341,18 @@ class DigitizerGUI(QMainWindow):
         self.layout.addWidget(self.main_text)
 
         self.button_layout = QtWidgets.QHBoxLayout()
-        self.button_layout.addWidget(self.btn_screenshot)
-        self.button_layout.addWidget(self.btn_select_file)
+        
+        self.left_button_layout = QtWidgets.QVBoxLayout()
+        self.left_button_layout.addWidget(self.btn_screenshot)
+        self.left_button_layout.addWidget(self.btn_history)
+        
+        self.right_button_layout = QtWidgets.QVBoxLayout()
+        self.right_button_layout.addWidget(self.btn_select_file)
+        self.right_button_layout.addWidget(self.btn_exported_files)
+
+        self.button_layout.addLayout(self.left_button_layout)
+        self.button_layout.addLayout(self.right_button_layout)
+        
         self.layout.addLayout(self.button_layout)
 
         self.layout.addWidget(self.btn_view_screenshot)
@@ -342,6 +372,8 @@ class DigitizerGUI(QMainWindow):
         self.btn_screenshot.hide()
         self.btn_select_file.hide()
         self.btn_analyze_graph.hide()
+        self.btn_history.hide()
+        self.btn_exported_files.hide()
 
     choice = False
     filename = ""
@@ -349,6 +381,8 @@ class DigitizerGUI(QMainWindow):
     def show_buttons(self):
         self.btn_screenshot.hide()
         self.btn_select_file.hide()
+        self.btn_history.hide()
+        self.btn_exported_files.hide()
         if self.choice == False:
             self.btn_view_screenshot.show()
             self.btn_analyze_graph.show()
@@ -447,6 +481,14 @@ class DigitizerGUI(QMainWindow):
                 except ValueError:
                     error_dialog = ErrorDialog(self)
                     error_dialog.exec()
+
+    def view_history(self):
+        print("Нажата кнопка для просмотра истории")  # Отладочное сообщение
+        # Добавьте здесь код для обработки кнопки "История"
+
+    def view_exported_files(self):
+        print("Нажата кнопка для просмотра экспортированных файлов")  # Отладочное сообщение
+        # Добавьте здесь код для обработки кнопки "Экспортированные файлы"
                     
     def closeEvent(self, event):
         self.cleanup()
@@ -455,6 +497,7 @@ class DigitizerGUI(QMainWindow):
     def cleanup(self):
         # Любая дополнительная очистка
         QApplication.quit()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
